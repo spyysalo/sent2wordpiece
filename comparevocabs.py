@@ -6,6 +6,7 @@ import re
 
 from collections import OrderedDict
 from itertools import combinations
+from random import sample
 from logging import warning
 
 
@@ -29,10 +30,10 @@ def load_vocab(path):
         for ln, l in enumerate(f, start=1):
             l = l.rstrip('\n')
             if not l or l.isspace():
-                warning('skipping empty line {} in {}'.format(ln, path))
+                warning('skipping empty line {} in {}: "{}"'.format(ln, path, l))
                 continue
             if not l or any(c.isspace() for c in l):
-                raise ValueError('line {} in {}: {}'.format(ln, path, l))
+                warning('line {} in {}: "{}"'.format(ln, path, l))
             vocab.append(l)
     print('read {} from {}'.format(len(vocab), path), file=sys.stderr)
     return vocab
@@ -52,12 +53,18 @@ def filter_special(vocab, name):
     return filtered
 
 
+def max_sample(population, k):
+    return sample(population, min(len(population), k))
+
+
 def compare(vocab1, vocab2, name1, name2):
     v1 = set(vocab1)
     v2 = set(vocab2)
     print('{} ({}) / {} ({}): overlap {} ({:.1%}/{:.1%})'.format(
         name1, len(v1), name2, len(v2), len(v1&v2), len(v1&v2)/len(v1),
         len(v1&v2)/len(v2)))
+    print('{} \ {}: {}'.format(name1, name2, ' '.join(max_sample(v1-v2, 10))))
+    print('{} \ {}: {}'.format(name2, name1, ' '.join(max_sample(v2-v1, 10))))
 
 
 def main(argv):

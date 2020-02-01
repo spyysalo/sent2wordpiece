@@ -2,6 +2,7 @@
 
 import sys
 import os
+import re
 
 
 # SentencePiece boundary marker
@@ -19,10 +20,15 @@ BERT_SPECIAL = ['[PAD]', '[UNK]', '[CLS]', '[SEP]', '[MASK]']
 # BERT "unused" special token format
 UNUSED_FORMAT = '[unused{}]'
 
+# SentencePiece line format regex
+SENTPIECE_LINE_RE = re.compile(r'^(.*)\t(-?[0-9.]+)$')
+
 
 def argparser():
     from argparse import ArgumentParser
     ap = ArgumentParser()
+    ap.add_argument('-c', '--add-chars', default=False, action='store_true',
+                    help='add single character tokens')
     ap.add_argument('-n', '--no-special', default=False, action='store_true',
                     help='do not add special BERT tokens')
     ap.add_argument('-k', '--keep-special', default=False, action='store_true',
@@ -40,12 +46,12 @@ def load_vocab(path):
     with open(path) as f:
         for ln, l in enumerate(f, start=1):
             l = l.rstrip('\n')
-            fields = l.split('\t')
-            if len(fields) != 2:
-                raise ValueError('line {} in {}: {}'.format(ln, path, l))
-            piece, _ = fields
+            m = SENTPIECE_LINE_RE.match(l)
+            if not m:
+                raise ValueError('line {} in {}: "{}"'.format(ln, path, l))
+            piece, _ = m.groups()
             if piece in seen:
-                raise ValueError('duplicate {} on line {} in {}: {}'.format(
+                raise ValueError('duplicate {} on line {} in {}: "{}"'.format(
                     piece, ln, path, l))
             vocab.append(piece)
             seen.add(piece)
@@ -78,6 +84,23 @@ def add_special(vocab, unused_count):
     return extended
 
 
+def add_chars(vocab):
+    chars = set()
+    for v in vocab:
+        if v.startswith(WORDPIECE_CONTINUATION):
+            v = v[len(WORDPIECE_CONTINUATION):]
+        for c in v:
+            chars.add(c)
+    extended = vocab[:]
+    tokens = set(vocab)
+    for c in chars:
+        if c not in tokens:
+            extended.append(c)
+    print('added chars from {} to {}'.format(len(vocab), len(extended)),
+          file=sys.stderr)
+    return extended
+
+
 def write_vocab(vocab, out):
     for v in vocab:
         print(v, file=out)
@@ -101,6 +124,8 @@ def main(argv):
     vocab = convert_vocab(vocab)
     if not args.no_special:
         vocab = add_special(vocab, args.unused)
+    if args.add_chars:
+        vocab = add_chars(vocab)
     output_vocab(vocab, args.output)
     return 0
 
