@@ -73,6 +73,7 @@ def convert_vocab(vocab):
             converted.append(v[len(SENTPIECE_BOUNDARY):])    # strip marker
         else:
             converted.append(WORDPIECE_CONTINUATION+v)    # add marker
+    converted = [t for t in converted if t and not t.isspace()]
     return converted
 
 
